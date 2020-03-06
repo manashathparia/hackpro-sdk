@@ -1,5 +1,5 @@
 {
-  "name": "etcher-sdk",
+  "name": "etcher-sdk2",
   "version": "2.0.17",
   "description": "Etcher SDK",
   "author": "Balena.io Ltd <hello@etcher.io> (https://balena.io)",
@@ -44,9 +44,6 @@
   },
   "bugs": {
     "url": "https://github.com/balena-io-modules/etcher-sdk/issues"
-  },
-  "optionalDependencies": {
-    "winusb-driver-generator": "^1.2.3"
   },
   "dependencies": {
     "@types/node": "^6.0.112",

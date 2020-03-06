@@ -14,35 +14,35 @@
  * limitations under the License.
  */
 
-import { EventEmitter } from 'events';
-import { ReadResult, WriteResult } from 'file-disk';
-import * as fileType from 'file-type';
-import { getPartitions, GetPartitionsResult } from 'partitioninfo';
-import { extname } from 'path';
-import { arch } from 'process';
-import { Stream as HashStream } from 'xxhash';
+import { EventEmitter } from "events";
+import { ReadResult, WriteResult } from "file-disk";
+import * as fileType from "file-type";
+import { getPartitions, GetPartitionsResult } from "partitioninfo";
+import { extname } from "path";
+import { arch } from "process";
+import { Stream as HashStream } from "xxhash";
 
 import {
 	CHUNK_SIZE,
 	PROGRESS_EMISSION_INTERVAL,
-	XXHASH_SEED,
-} from '../constants';
-import { ChecksumVerificationError, NotCapable } from '../errors';
-import { BlocksWithChecksum, SparseReadable } from '../sparse-stream/shared';
-import { SparseFilterStream } from '../sparse-stream/sparse-filter-stream';
-import { SparseReadStream } from '../sparse-stream/sparse-read-stream';
-import { SparseWritable } from '../sparse-stream/sparse-write-stream';
-import { streamToBuffer } from '../utils';
+	XXHASH_SEED
+} from "../constants";
+import { ChecksumVerificationError, NotCapable } from "../errors";
+import { BlocksWithChecksum, SparseReadable } from "../sparse-stream/shared";
+import { SparseFilterStream } from "../sparse-stream/sparse-filter-stream";
+import { SparseReadStream } from "../sparse-stream/sparse-read-stream";
+import { SparseWritable } from "../sparse-stream/sparse-write-stream";
+import { streamToBuffer } from "../utils";
 
-import { Metadata } from './metadata';
+import { Metadata } from "./metadata";
 import {
 	makeClassEmitProgressEvents,
 	ProgressEvent,
-	ProgressWritable,
-} from './progress';
-import { SourceSource } from './source-source';
+	ProgressWritable
+} from "./progress";
+import { SourceSource } from "./source-source";
 
-const BITS = arch === 'x64' || arch === 'aarch64' ? 64 : 32;
+const BITS = arch === "x64" || arch === "aarch64" ? 64 : 32;
 
 export class CountingHashStream extends HashStream {
 	public bytesWritten = 0;
@@ -57,16 +57,16 @@ export class CountingHashStream extends HashStream {
 
 export const ProgressHashStream = makeClassEmitProgressEvents(
 	CountingHashStream,
-	'bytesWritten',
-	'bytesWritten',
-	PROGRESS_EMISSION_INTERVAL,
+	"bytesWritten",
+	"bytesWritten",
+	PROGRESS_EMISSION_INTERVAL
 );
 
 export function createHasher() {
-	const hasher = new ProgressHashStream(XXHASH_SEED, BITS, 'buffer');
-	hasher.on('finish', async () => {
-		const checksum = (await streamToBuffer(hasher)).toString('hex');
-		hasher.emit('checksum', checksum);
+	const hasher = new ProgressHashStream(XXHASH_SEED, BITS, "buffer");
+	hasher.on("finish", async () => {
+		const checksum = (await streamToBuffer(hasher)).toString("hex");
+		hasher.emit("checksum", checksum);
 	});
 	return hasher;
 }
@@ -78,7 +78,7 @@ export class SourceDestinationFs {
 	public open(
 		_path: string,
 		_options: any,
-		callback: (error: Error | null, fd?: number) => void,
+		callback: (error: Error | null, fd?: number) => void
 	) {
 		callback(null, 1);
 	}
@@ -89,13 +89,13 @@ export class SourceDestinationFs {
 
 	public fstat(
 		_fd: number,
-		callback: (error: Error | null, stats?: { size: number }) => void,
+		callback: (error: Error | null, stats?: { size: number }) => void
 	) {
 		this.source
 			.getMetadata()
 			.then(metadata => {
 				if (metadata.size === undefined) {
-					callback(new Error('No size'));
+					callback(new Error("No size"));
 					return;
 				}
 				callback(null, { size: metadata.size });
@@ -109,11 +109,7 @@ export class SourceDestinationFs {
 		bufferOffset: number,
 		length: number,
 		sourceOffset: number,
-		callback: (
-			error: Error | null,
-			bytesRead?: number,
-			buffer?: Buffer,
-		) => void,
+		callback: (error: Error | null, bytesRead?: number, buffer?: Buffer) => void
 	) {
 		this.source
 			.read(buffer, bufferOffset, length, sourceOffset)
@@ -133,15 +129,15 @@ export abstract class Verifier extends EventEmitter {
 
 	protected handleEventsAndPipe(
 		stream: NodeJS.ReadableStream,
-		meter: NodeJS.WritableStream,
+		meter: NodeJS.WritableStream
 	) {
-		meter.on('progress', (progress: ProgressEvent) => {
+		meter.on("progress", (progress: ProgressEvent) => {
 			this.progress = progress;
-			this.emit('progress', progress);
+			this.emit("progress", progress);
 		});
-		stream.on('end', this.emit.bind(this, 'end'));
-		meter.on('finish', this.emit.bind(this, 'finish'));
-		stream.once('error', () => {
+		stream.on("end", this.emit.bind(this, "end"));
+		meter.on("finish", this.emit.bind(this, "finish"));
+		stream.once("error", () => {
 			stream.unpipe(meter);
 			meter.end();
 		});
@@ -153,25 +149,25 @@ export class StreamVerifier extends Verifier {
 	constructor(
 		private source: SourceDestination,
 		private checksum: string,
-		private size: number,
+		private size: number
 	) {
 		super();
 	}
 
 	public async run(): Promise<void> {
 		const stream = await this.source.createReadStream(false, 0, this.size - 1);
-		stream.on('error', this.emit.bind(this, 'error'));
+		stream.on("error", this.emit.bind(this, "error"));
 		const hasher = createHasher();
-		hasher.on('error', this.emit.bind(this, 'error'));
-		hasher.on('checksum', (streamChecksum: string) => {
+		hasher.on("error", this.emit.bind(this, "error"));
+		hasher.on("checksum", (streamChecksum: string) => {
 			if (streamChecksum !== this.checksum) {
 				this.emit(
-					'error',
+					"error",
 					new ChecksumVerificationError(
 						`Source and destination checksums do not match: ${this.checksum} !== ${streamChecksum}`,
 						streamChecksum,
-						this.checksum,
-					),
+						this.checksum
+					)
 				);
 			}
 		});
@@ -182,7 +178,7 @@ export class StreamVerifier extends Verifier {
 export class SparseStreamVerifier extends Verifier {
 	constructor(
 		private source: SourceDestination,
-		private blocks: BlocksWithChecksum[],
+		private blocks: BlocksWithChecksum[]
 	) {
 		super();
 	}
@@ -195,28 +191,28 @@ export class SparseStreamVerifier extends Verifier {
 				this.blocks,
 				CHUNK_SIZE,
 				true, // verify
-				false, // generateChecksums
+				false // generateChecksums
 			);
-			stream.on('error', this.emit.bind(this, 'error'));
+			stream.on("error", this.emit.bind(this, "error"));
 		} else if (await this.source.canCreateReadStream()) {
 			const originalStream = await this.source.createReadStream();
-			originalStream.once('error', (error: Error) => {
+			originalStream.once("error", (error: Error) => {
 				originalStream.unpipe(transform);
-				this.emit('error', error);
+				this.emit("error", error);
 			});
 			const transform = new SparseFilterStream(
 				this.blocks,
 				true, // verify
-				false, // generateChecksums
+				false // generateChecksums
 			);
-			transform.once('error', (error: Error) => {
+			transform.once("error", (error: Error) => {
 				originalStream.unpipe(transform);
 				// @ts-ignore
-				if (typeof originalStream.destroy === 'function') {
+				if (typeof originalStream.destroy === "function") {
 					// @ts-ignore
 					originalStream.destroy();
 				}
-				this.emit('error', error);
+				this.emit("error", error);
 			});
 			originalStream.pipe(transform);
 			stream = transform;
@@ -229,18 +225,7 @@ export class SparseStreamVerifier extends Verifier {
 }
 
 export class SourceDestination extends EventEmitter {
-	public static readonly imageExtensions = [
-		'img',
-		'iso',
-		'bin',
-		'dsk',
-		'hddimg',
-		'raw',
-		'dmg',
-		'sdcard',
-		'rpi-sdimg',
-		'wic',
-	];
+	public static readonly imageExtensions = ["img", "bin", "raw", "dmg", "hpro"];
 	public static readonly mimetype?: string;
 	private static mimetypes = new Map<string, typeof SourceSource>();
 
@@ -292,7 +277,7 @@ export class SourceDestination extends EventEmitter {
 		_buffer: Buffer,
 		_bufferOffset: number,
 		_length: number,
-		_sourceOffset: number,
+		_sourceOffset: number
 	): Promise<ReadResult> {
 		throw new NotCapable();
 	}
@@ -301,7 +286,7 @@ export class SourceDestination extends EventEmitter {
 		_buffer: Buffer,
 		_bufferOffset: number,
 		_length: number,
-		_fileOffset: number,
+		_fileOffset: number
 	): Promise<WriteResult> {
 		throw new NotCapable();
 	}
@@ -309,13 +294,13 @@ export class SourceDestination extends EventEmitter {
 	public async createReadStream(
 		_emitProgress = false,
 		_start = 0,
-		_end?: number,
+		_end?: number
 	): Promise<NodeJS.ReadableStream> {
 		throw new NotCapable();
 	}
 
 	public async createSparseReadStream(
-		_generateChecksums = false,
+		_generateChecksums = false
 	): Promise<SparseReadable> {
 		throw new NotCapable();
 	}
@@ -356,13 +341,13 @@ export class SourceDestination extends EventEmitter {
 
 	public createVerifier(
 		checksumOrBlocks: string | BlocksWithChecksum[],
-		size?: number,
+		size?: number
 	): Verifier {
 		if (Array.isArray(checksumOrBlocks)) {
 			for (const block of checksumOrBlocks) {
 				if (block.checksumType === undefined || block.checksum === undefined) {
 					throw new Error(
-						'Block is missing checksum or checksumType attributes, can not create verifier',
+						"Block is missing checksum or checksumType attributes, can not create verifier"
 					);
 				}
 			}
@@ -370,7 +355,7 @@ export class SourceDestination extends EventEmitter {
 		} else {
 			if (size === undefined) {
 				throw new Error(
-					'A size argument is required for creating a stream checksum verifier',
+					"A size argument is required for creating a stream checksum verifier"
 				);
 			}
 			return new StreamVerifier(this, checksumOrBlocks, size);
@@ -383,8 +368,8 @@ export class SourceDestination extends EventEmitter {
 			return;
 		}
 		const extension = extname(metadata.name).toLowerCase();
-		if (extension === '.dmg') {
-			return 'application/x-apple-diskimage';
+		if (extension === ".dmg" || ".hpro") {
+			return "application/x-apple-diskimage";
 		}
 	}
 
@@ -414,7 +399,7 @@ export class SourceDestination extends EventEmitter {
 		}
 		if (Cls.requiresRandomReadableSource && !(await this.canRead())) {
 			throw new NotCapable(
-				`Can not read a ${Cls.name} from a ${this.constructor.name}.`,
+				`Can not read a ${Cls.name} from a ${this.constructor.name}.`
 			);
 		}
 		const innerSource = new Cls(this);
