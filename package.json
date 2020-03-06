@@ -13,7 +13,7 @@
     "test": "npm run lint && mocha -r ts-node/register tests/**/*.spec.ts",
     "prettier": "prettier --config ./node_modules/resin-lint/config/.prettierrc --write \"lib/**/*.ts\" \"typings/**/*.ts\" \"examples/**/*.ts\" \"tests/**/*.ts\"",
     "lint": "resin-lint --typescript lib typings examples tests",
-    "build": "rimraf build doc && tsc && npm run doc",
+    "build": "rimraf build doc && tsc ",
     "doc": "typedoc --readme none --theme markdown --mode file --out doc lib && sed -i 's|'$(pwd)'||g' $(find doc -type f)",
     "prepublish": "npm run build"
   },
@@ -95,5 +95,8 @@
     "typedoc-plugin-markdown": "^1.2.0",
     "typescript": "^3.0.3",
     "yargs": "^11.0.0"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
   }
 }
